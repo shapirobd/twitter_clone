@@ -1,11 +1,12 @@
 import os
+import pdb
 
 from flask import Flask, render_template, request, flash, redirect, session, g
 from flask_debugtoolbar import DebugToolbarExtension
 from sqlalchemy.exc import IntegrityError
 
-from forms import UserAddForm, LoginForm, MessageForm
-from models import db, connect_db, User, Message
+from forms import UserAddForm, LoginForm, MessageForm, UserEditForm
+from models import db, connect_db, User, Message, Follows, Likes
 
 CURR_USER_KEY = "curr_user"
 
@@ -50,7 +51,9 @@ def do_logout():
     """Logout user."""
 
     if CURR_USER_KEY in session:
+        user = User.query.get(session[CURR_USER_KEY])
         del session[CURR_USER_KEY]
+        flash(f"Goodbye, {user.username}!")
 
 
 @app.route('/signup', methods=["GET", "POST"])
@@ -114,10 +117,11 @@ def logout():
     """Handle logout of user."""
 
     # IMPLEMENT THIS
-
-
+    do_logout()
+    return redirect('/login')
 ##############################################################################
 # General user routes:
+
 
 @app.route('/users')
 def list_users():
@@ -210,8 +214,28 @@ def stop_following(follow_id):
 @app.route('/users/profile', methods=["GET", "POST"])
 def profile():
     """Update profile for current user."""
+    if CURR_USER_KEY in session:
+        form = UserEditForm()
 
-    # IMPLEMENT THIS
+        if form.validate_on_submit():
+            user = User.authenticate(
+                username=User.query.get(session[CURR_USER_KEY]).username, password=form.password.data)
+
+            if user:
+                user.username = form.username.data
+                user.email = form.email.data
+                if not form.image_url.data.isspace():
+                    user.image_url = form.image_url.data
+                if not form.header_image_url.data.isspace():
+                    user.header_image_url = form.header_image_url.data
+                user.bio = form.bio.data
+
+                db.session.commit()
+
+                return redirect(f'/users/{user.id}')
+            flash('Error: Invalid password', 'danger')
+            return ('/')
+    return render_template('/users/edit.html', form=form)
 
 
 @app.route('/users/delete', methods=["POST"])
@@ -297,7 +321,6 @@ def homepage():
                     .order_by(Message.timestamp.desc())
                     .limit(100)
                     .all())
-
         return render_template('home.html', messages=messages)
 
     else:
@@ -319,4 +342,5 @@ def add_header(req):
     req.headers["Pragma"] = "no-cache"
     req.headers["Expires"] = "0"
     req.headers['Cache-Control'] = 'public, max-age=0'
+
     return req
