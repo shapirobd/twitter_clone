@@ -19,7 +19,7 @@ app.config['SQLALCHEMY_DATABASE_URI'] = (
 
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SQLALCHEMY_ECHO'] = False
-app.config['DEBUG_TB_INTERCEPT_REDIRECTS'] = True
+app.config['DEBUG_TB_INTERCEPT_REDIRECTS'] = False
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', "it's a secret")
 toolbar = DebugToolbarExtension(app)
 
@@ -215,6 +215,7 @@ def stop_following(follow_id):
 def profile():
     """Update profile for current user."""
     if CURR_USER_KEY in session:
+
         form = UserEditForm()
 
         if form.validate_on_submit():
@@ -224,18 +225,17 @@ def profile():
             if user:
                 user.username = form.username.data
                 user.email = form.email.data
-                if not form.image_url.data.isspace():
-                    user.image_url = form.image_url.data
-                if not form.header_image_url.data.isspace():
-                    user.header_image_url = form.header_image_url.data
+                user.image_url = form.image_url.data
+                user.header_image_url = form.header_image_url.data
                 user.bio = form.bio.data
 
                 db.session.commit()
 
                 return redirect(f'/users/{user.id}')
             flash('Error: Invalid password', 'danger')
-            return ('/')
-    return render_template('/users/edit.html', form=form)
+            return redirect('/')
+        return render_template('/users/edit.html', form=form)
+    return redirect('/login')
 
 
 @app.route('/users/delete', methods=["POST"])
@@ -316,11 +316,11 @@ def homepage():
     """
 
     if g.user:
-        messages = (Message
-                    .query
-                    .order_by(Message.timestamp.desc())
-                    .limit(100)
-                    .all())
+        print(g.user.following)
+        user_ids = [Message.user.id for Message.user in g.user.following]
+        user_ids.append(g.user.id)
+        messages = Message.query.filter(Message.user_id.in_(user_ids)).order_by(
+            Message.timestamp.desc()).limit(100).all()
         return render_template('home.html', messages=messages)
 
     else:
