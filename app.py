@@ -1,7 +1,7 @@
 import os
 import pdb
 
-from flask import Flask, render_template, request, flash, redirect, session, g
+from flask import Flask, render_template, request, flash, redirect, session, g, url_for
 from flask_debugtoolbar import DebugToolbarExtension
 from sqlalchemy.exc import IntegrityError
 
@@ -303,6 +303,28 @@ def messages_destroy(message_id):
     return redirect(f"/users/{g.user.id}")
 
 
+@app.route('/users/add_like/<int:msg_id>', methods=['POST'])
+def add_like(msg_id):
+
+    if g.user:
+        message = Message.query.get_or_404(msg_id)
+        if message.user_id != g.user.id:
+            like = Likes(user_id=g.user.id, message_id=msg_id)
+            db.session.add(like)
+            db.session.commit()
+        return redirect('/')
+    return redirect('/login')
+
+
+@app.route('/users/remove_like/<int:msg_id>', methods=['POST'])
+def remove_like(msg_id):
+    if g.user:
+        message = Message.query.get_or_404(msg_id)
+        Likes.query.filter(Likes.message_id == message.id).delete()
+        db.session.commit()
+        return redirect('/')
+    return redirect('/login')
+
 ##############################################################################
 # Homepage and error pages
 
@@ -321,7 +343,9 @@ def homepage():
         user_ids.append(g.user.id)
         messages = Message.query.filter(Message.user_id.in_(user_ids)).order_by(
             Message.timestamp.desc()).limit(100).all()
-        return render_template('home.html', messages=messages)
+        likes = Likes.query.filter(Likes.user_id == g.user.id).all()
+        liked_msg_ids = [like.message_id for like in likes]
+        return render_template('home.html', messages=messages, liked_msg_ids=liked_msg_ids)
 
     else:
         return render_template('home-anon.html')
