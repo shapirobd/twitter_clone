@@ -9,7 +9,9 @@ from app import app
 import os
 from unittest import TestCase
 
-from models import db, User, Message, Follows
+from models import db, User, Message, Follows, bcrypt
+from sqlalchemy.exc import IntegrityError
+from psycopg2.errors import UniqueViolation
 
 # BEFORE we import our app, let's set an environmental variable
 # to use a different database for tests (we need to do this
@@ -29,6 +31,12 @@ os.environ['DATABASE_URL'] = "postgresql:///warbler-test"
 db.create_all()
 
 
+def test(username, password, email, image_url):
+    user = User.signup(email=email, password=password, username=username,
+                       image_url=image_url)
+    db.session.commit()
+
+
 class UserModelTestCase(TestCase):
     """Test views for messages."""
 
@@ -41,16 +49,10 @@ class UserModelTestCase(TestCase):
 
         self.client = app.test_client()
 
-        self.user1 = User(email='email1@gmail.com', password='user1password', username='username1',
-                          bio='This is the bio for user1')
-        self.user2 = User(email='email2@gmail.com', password='user2password', username='username2',
-                          bio='This is the bio for user2')
-        self.user3 = User(email='email3@gmail.com', password='user3password', username='username3',
-                          bio='This is the bio for user3')
-        self.user4 = User(email='email4@gmail.com', password='user4password', username='username4',
-                          bio='This is the bio for user4')
-        self.user5 = User(email='email5@gmail.com', password='user5password', username='username5',
-                          bio='This is the bio for user5')
+        self.user1 = User.signup(email='email1@gmail.com', password='user1password', username='username1',
+                                 image_url=None)
+        self.user2 = User.signup(email='email2@gmail.com', password='user2password', username='username2',
+                                 image_url=None)
 
     def test_user_model(self):
         """Does basic model work?"""
@@ -102,26 +104,74 @@ class UserModelTestCase(TestCase):
         db.session.commit()
 
         self.assertEqual(self.user1.is_following(self.user2), False)
+
     # **********
     # Does is_followed_by successfully detect when user1 is followed by user2?
     # **********
+    def test_is_followed_by_true(self):
+        db.session.add(self.user1)
+        db.session.add(self.user2)
+        db.session.commit()
+        new_follow = Follows(user_following_id=self.user2.id,
+                             user_being_followed_id=self.user1.id)
+        db.session.add(new_follow)
+        db.session.commit()
+        self.assertEqual(self.user1.is_followed_by(self.user2), True)
 
     # **********
     # Does is_followed_by successfully detect when user1 is not followed by user2?
     # **********
 
+    def test_is_followed_by_false(self):
+        db.session.add(self.user1)
+        db.session.add(self.user2)
+        db.session.commit()
+
+        self.assertEqual(self.user1.is_followed_by(self.user2), False)
+
     # **********
     # Does User.create successfully create a new user given valid credentials?
     # **********
+
+    def test_signup_user(self):
+        user = User.signup(username='goofyguy123', password='thisisapassword321',
+                           email='email_address@yahoo.com', image_url="https://lh3.googleusercontent.com/proxy/I9ot2AXlLZ83jGME-XGXpzvmjjusCrynU7FmBCzk_K_9b0vfOGll4Lwu437nWkyS7HyYlzHAZPgTcbhA5egPobaJlKq0J0Lvuyd3wpO-7K195eu4aclf")
+
+        db.session.add(user)
+        db.session.commit()
+
+        self.assertTrue(user)
+        self.assertEqual(user.username, 'goofyguy123')
+        self.assertTrue(bcrypt.check_password_hash(
+            user.password, 'thisisapassword321'))
+        self.assertEqual(user.email, 'email_address@yahoo.com')
+        self.assertEqual(
+            user.image_url, "https://lh3.googleusercontent.com/proxy/I9ot2AXlLZ83jGME-XGXpzvmjjusCrynU7FmBCzk_K_9b0vfOGll4Lwu437nWkyS7HyYlzHAZPgTcbhA5egPobaJlKq0J0Lvuyd3wpO-7K195eu4aclf")
 
     # **********
     # Does User.create fail to create a new user if any of the validations (e.g. uniqueness, non-nullable fields) fail?
     # **********
 
+    # NOT UNIQUE USERNAME
+    # def test_signup_user_fail(self):
+    #     db.session.add(self.user1)
+    #     db.session.commit()
+
+    #     self.assertRaises(IntegrityError, User.signup(username='username1', password='user1password', email='email1@gmail.com',
+    #                                                   image_url="https://lh3.googleusercontent.com/proxy/I9ot2AXlLZ83jGME-XGXpzvmjjusCrynU7FmBCzk_K_9b0vfOGll4Lwu437nWkyS7HyYlzHAZPgTcbhA5egPobaJlKq0J0Lvuyd3wpO-7K195eu4aclf"))
+
     # **********
     # Does User.authenticate successfully return a user when given a valid username and password?
     # **********
 
+    def test_authenticate_user_success(self):
+        db.session.add(self.user1)
+        db.session.commit()
+
+        user = User.authenticate(
+            self.user1.username, 'user1password')
+
+        self.assertEqual(user, self.user1)
     # **********
     # Does User.authenticate fail to return a user when the username is invalid?
     # **********

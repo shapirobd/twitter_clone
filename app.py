@@ -225,11 +225,12 @@ def profile():
             user = User.authenticate(
                 username=User.query.get(session[CURR_USER_KEY]).username, password=form.password.data)
 
+            # ******************** ASK JOSH ********************
             if user:
                 user.username = form.username.data
                 user.email = form.email.data
-                user.image_url = form.image_url.data
-                user.header_image_url = form.header_image_url.data
+                user.image_url = form.image_url.data or '/static/images/default-pic.png'
+                user.header_image_url = form.header_image_url.data or '/static/images/warbler-hero.jpg'
                 user.bio = form.bio.data
 
                 db.session.commit()
@@ -347,8 +348,7 @@ def homepage():
     """
 
     if g.user:
-        print(g.user.following)
-        user_ids = [Message.user.id for Message.user in g.user.following]
+        user_ids = [user.id for user in g.user.following]
         user_ids.append(g.user.id)
         messages = Message.query.filter(Message.user_id.in_(user_ids)).order_by(
             Message.timestamp.desc()).limit(100).all()
