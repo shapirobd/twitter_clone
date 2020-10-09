@@ -176,6 +176,24 @@ class UserModelTestCase(TestCase):
     # Does User.authenticate fail to return a user when the username is invalid?
     # **********
 
+    def test_authenticate_user_failed_username(self):
+        db.session.add(self.user2)
+        db.session.commit()
+
+        user = User.authenticate(
+            self.user1.username, 'user2password')
+
+        self.assertFalse(user)
+
     # **********
     # Does User.authenticate fail to return a user when the password is invalid?#
     # **********
+
+    def test_authenticate_user_failed_password(self):
+        db.session.add(self.user1)
+        db.session.commit()
+
+        user = User.authenticate(
+            self.user1.username, 'user2password')
+
+        self.assertFalse(user)
