@@ -155,9 +155,7 @@ def users_show(user_id):
                 .limit(100)
                 .all())
 
-    likes = g.user.likes
-
-    return render_template('users/show.html', user=user, messages=messages, likes=likes)
+    return render_template('users/show.html', user=user, messages=messages)
 
 
 @app.route('/users/<int:user_id>/following')
@@ -276,6 +274,10 @@ def messages_add():
 
     if form.validate_on_submit():
         msg = Message(text=form.text.data)
+        if msg.user_id != g.user.id:
+            flash("Access unauthorized.", "danger")
+            return redirect("/")
+
         g.user.messages.append(msg)
         db.session.commit()
 
@@ -296,18 +298,19 @@ def messages_show(message_id):
 def messages_destroy(message_id):
     """Delete a message."""
 
-    if not g.user:
+    msg = Message.query.get(message_id)
+
+    if g.user != msg.user or not g.user:
         flash("Access unauthorized.", "danger")
         return redirect("/")
 
-    msg = Message.query.get(message_id)
     db.session.delete(msg)
     db.session.commit()
 
     return redirect(f"/users/{g.user.id}")
 
 
-@app.route('/users/add_like/<int:msg_id>', methods=['POST'])
+@app.route('/messages/<int:msg_id>/like', methods=['POST'])
 def add_like(msg_id):
 
     if g.user:
@@ -317,10 +320,11 @@ def add_like(msg_id):
             db.session.add(like)
             db.session.commit()
         return redirect('/')
+    flash('Access unauthorized', 'danger')
     return render_template('home-anon.html')
 
 
-@app.route('/users/remove_like/<int:msg_id>', methods=['POST'])
+@app.route('/messages/<int:msg_id>/remove_like', methods=['POST'])
 def remove_like(msg_id):
     if g.user:
         message = Message.query.get_or_404(msg_id)

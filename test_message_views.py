@@ -5,6 +5,7 @@
 #    FLASK_ENV=production python -m unittest test_message_views.py
 
 
+from app import app, CURR_USER_KEY
 import os
 from unittest import TestCase
 
@@ -20,7 +21,6 @@ os.environ['DATABASE_URL'] = "postgresql:///warbler-test"
 
 # Now we can import app
 
-from app import app, CURR_USER_KEY
 
 # Create our tables (we do this here, so we only create the tables
 # once for all tests --- in each test, we'll delete the data
@@ -44,12 +44,24 @@ class MessageViewTestCase(TestCase):
 
         self.client = app.test_client()
 
-        self.testuser = User.signup(username="testuser",
-                                    email="test@test.com",
-                                    password="testuser",
-                                    image_url=None)
-
+        self.testuser1 = User.signup(username="testuser1",
+                                     email="test1@test.com",
+                                     password="testuser1",
+                                     image_url=None)
+        self.testuser2 = User.signup(username="testuser2",
+                                     email="test2@test.com",
+                                     password="testuser2",
+                                     image_url=None)
+        self.testuser1.id = id = 123
+        self.testuser2.id = id = 321
         db.session.commit()
+
+    def create_message(self):
+        m = Message(id=332, text='This is a test message',
+                    user_id=self.testuser1.id)
+        db.session.add(m)
+        db.session.commit()
+        return m
 
     def test_add_message(self):
         """Can use add a message?"""
@@ -59,7 +71,7 @@ class MessageViewTestCase(TestCase):
 
         with self.client as c:
             with c.session_transaction() as sess:
-                sess[CURR_USER_KEY] = self.testuser.id
+                sess[CURR_USER_KEY] = self.testuser1.id
 
             # Now, that session setting is saved, so we can have
             # the rest of ours test
@@ -71,3 +83,92 @@ class MessageViewTestCase(TestCase):
 
             msg = Message.query.one()
             self.assertEqual(msg.text, "Hello")
+
+    # ************************
+    # Can user view a message?
+    # ************************
+
+    def test_show_message(self):
+        with self.client as c:
+            with c.session_transaction() as sess:
+                sess[CURR_USER_KEY] = self.testuser1.id
+
+            message = self.create_message()
+
+            resp = c.get(f'/messages/{message.id}')
+
+            self.assertEquals(resp.status_code, 200)
+            self.assertIn('This is a test message', str(resp.data))
+
+    # ************************
+    # When you’re logged in, can you delete a message as yourself?
+    # ************************
+
+    def test_delete_message(self):
+        with self.client as c:
+            with c.session_transaction() as sess:
+                sess[CURR_USER_KEY] = self.testuser1.id
+
+            message = self.create_message()
+
+            user = message.user
+            resp = c.post(f'/messages/{message.id}/delete')
+
+            self.assertEquals(resp.status_code, 302)
+            self.assertNotIn(message, user.messages)
+
+    # ************************
+    # When you’re logged out, are you prohibited from adding messages?
+    # ************************
+
+    def test_unauthenticated_add_message(self):
+        with self.client as c:
+
+            resp = c.post("/messages/new",
+                          data={"text": "Hello"}, follow_redirects=True)
+            self.assertIn('Access unauthorized', str(resp.data))
+
+    # ************************
+    # When you’re logged out, are you prohibited from deleting messages?
+    # ************************
+    def test_unauthenticated_delete_message(self):
+        message = self.create_message()
+        user = message.user
+
+        with self.client as c:
+
+            resp = c.post(
+                f'/messages/{message.id}/delete', follow_redirects=True)
+
+            self.assertIn('Access unauthorized', str(resp.data))
+
+    # ************************
+    # When you’re logged in, are you prohibiting from adding a message as another user?
+    # ************************
+    def test_unauthorized_add_message(self):
+        with self.client as c:
+            with c.session_transaction() as sess:
+                sess[CURR_USER_KEY] = self.testuser2.id
+
+            resp = c.post("/messages/new",
+                          data={"text": "Hello", 'user_id': 123}, follow_redirects=True)
+
+            self.assertEqual(resp.status_code, 200)
+            self.assertIn("Access unauthorized", str(resp.data))
+
+    # ************************
+    # When you’re logged in, are you prohibiting from deleting a message as another user?
+    # ************************
+    def test_unauthorized_delete_message(self):
+        message = self.create_message()
+        user = message.user
+
+        with self.client as c:
+            with c.session_transaction() as sess:
+                sess[CURR_USER_KEY] = self.testuser2.id
+
+            resp = c.post(
+                f"/messages/{message.id}/delete", follow_redirects=True)
+
+            self.assertEqual(resp.status_code, 200)
+            self.assertIn("Access unauthorized", str(resp.data))

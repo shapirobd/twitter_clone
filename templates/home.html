@@ -62,7 +62,7 @@
 				{% if msg.id in liked_msg_ids %}
 				<form
 					method="POST"
-					action="/users/remove_like/{{ msg.id }}"
+					action="/message/{{ msg.id }}/remove_like"
 					id="messages-form"
 				>
 					<button class="btn btn-sm btn-primary">
@@ -72,7 +72,7 @@
 				{% else %}
 				<form
 					method="POST"
-					action="/users/add_like/{{ msg.id }}"
+					action="/messages/{{ msg.id }}/like"
 					id="messages-form"
 				>
 					<button class="btn btn-sm btn-secondary">

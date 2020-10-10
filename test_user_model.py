@@ -54,6 +54,8 @@ class UserModelTestCase(TestCase):
         self.user2 = User.signup(email='email2@gmail.com', password='user2password', username='username2',
                                  image_url=None)
 
+        db.session.commit()
+
     def test_user_model(self):
         """Does basic model work?"""
 
@@ -75,9 +77,7 @@ class UserModelTestCase(TestCase):
     # **********
 
     def test_user_model_repr(self):
-        """Does basic model work?"""
-        db.session.add(self.user1)
-        db.session.commit()
+        """Does basic model repr work?"""
         # User should have no messages & no followers
         self.assertEqual(
             f'{self.user1}', f'<User #{self.user1.id}: username1, email1@gmail.com>')
@@ -86,9 +86,6 @@ class UserModelTestCase(TestCase):
     # Does is_following successfully detect when user1 is following user2?
     # **********
     def test_is_following_true(self):
-        db.session.add(self.user1)
-        db.session.add(self.user2)
-        db.session.commit()
         new_follow = Follows(user_following_id=self.user1.id,
                              user_being_followed_id=self.user2.id)
         db.session.add(new_follow)
@@ -99,19 +96,12 @@ class UserModelTestCase(TestCase):
     # Does is_following successfully detect when user1 is not following user2?
     # **********
     def test_is_following_false(self):
-        db.session.add(self.user1)
-        db.session.add(self.user2)
-        db.session.commit()
-
         self.assertEqual(self.user1.is_following(self.user2), False)
 
     # **********
     # Does is_followed_by successfully detect when user1 is followed by user2?
     # **********
     def test_is_followed_by_true(self):
-        db.session.add(self.user1)
-        db.session.add(self.user2)
-        db.session.commit()
         new_follow = Follows(user_following_id=self.user2.id,
                              user_being_followed_id=self.user1.id)
         db.session.add(new_follow)
@@ -121,18 +111,12 @@ class UserModelTestCase(TestCase):
     # **********
     # Does is_followed_by successfully detect when user1 is not followed by user2?
     # **********
-
     def test_is_followed_by_false(self):
-        db.session.add(self.user1)
-        db.session.add(self.user2)
-        db.session.commit()
-
         self.assertEqual(self.user1.is_followed_by(self.user2), False)
 
     # **********
     # Does User.create successfully create a new user given valid credentials?
     # **********
-
     def test_signup_user(self):
         user = User.signup(username='goofyguy123', password='thisisapassword321',
                            email='email_address@yahoo.com', image_url="https://lh3.googleusercontent.com/proxy/I9ot2AXlLZ83jGME-XGXpzvmjjusCrynU7FmBCzk_K_9b0vfOGll4Lwu437nWkyS7HyYlzHAZPgTcbhA5egPobaJlKq0J0Lvuyd3wpO-7K195eu4aclf")
@@ -153,21 +137,28 @@ class UserModelTestCase(TestCase):
     # **********
 
     # NOT UNIQUE USERNAME
-    # def test_signup_user_fail(self):
-    #     db.session.add(self.user1)
-    #     db.session.commit()
 
-    #     self.assertRaises(IntegrityError, User.signup(username='username1', password='user1password', email='email1@gmail.com',
-    #                                                   image_url="https://lh3.googleusercontent.com/proxy/I9ot2AXlLZ83jGME-XGXpzvmjjusCrynU7FmBCzk_K_9b0vfOGll4Lwu437nWkyS7HyYlzHAZPgTcbhA5egPobaJlKq0J0Lvuyd3wpO-7K195eu4aclf"))
+    def test_signup_duplicate_username(self):
+        invalid_user = User.signup(username='username1', password='password',
+                                   email='thisisanemail@gmail.com', image_url=None)
+
+        with self.assertRaises(IntegrityError) as context:
+            db.session.commit()
+
+    # NOT UNIQUE EMAIL
+
+    def test_signup_duplicate_email(self):
+        invalid_user = User.signup(username='username123', password='password',
+                                   email='email1@gmail.com', image_url=None)
+
+        with self.assertRaises(IntegrityError) as context:
+            db.session.commit()
 
     # **********
     # Does User.authenticate successfully return a user when given a valid username and password?
     # **********
 
     def test_authenticate_user_success(self):
-        db.session.add(self.user1)
-        db.session.commit()
-
         user = User.authenticate(
             self.user1.username, 'user1password')
 
@@ -177,9 +168,6 @@ class UserModelTestCase(TestCase):
     # **********
 
     def test_authenticate_user_failed_username(self):
-        db.session.add(self.user2)
-        db.session.commit()
-
         user = User.authenticate(
             self.user1.username, 'user2password')
 
@@ -188,11 +176,7 @@ class UserModelTestCase(TestCase):
     # **********
     # Does User.authenticate fail to return a user when the password is invalid?#
     # **********
-
     def test_authenticate_user_failed_password(self):
-        db.session.add(self.user1)
-        db.session.commit()
-
         user = User.authenticate(
             self.user1.username, 'user2password')
 
