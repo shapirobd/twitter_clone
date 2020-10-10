@@ -64,7 +64,7 @@ class MessageViewTestCase(TestCase):
         return m
 
     def test_add_message(self):
-        """Can use add a message?"""
+        """Can user add a message?"""
 
         # Since we need to change the session to mimic logging in,
         # we need to use the changing-session trick:
@@ -76,12 +76,16 @@ class MessageViewTestCase(TestCase):
             # Now, that session setting is saved, so we can have
             # the rest of ours test
 
-            resp = c.post("/messages/new", data={"text": "Hello"})
+            resp = c.post("/messages/new",
+                          data={"text": "Hello"})
 
             # Make sure it redirects
             self.assertEqual(resp.status_code, 302)
 
-            msg = Message.query.one()
+            msg = Message.query.filter(Message.text == 'Hello').first()
+            print(
+                f'************************ {msg} ************************')
+
             self.assertEqual(msg.text, "Hello")
 
     # ************************
@@ -124,8 +128,8 @@ class MessageViewTestCase(TestCase):
     def test_unauthenticated_add_message(self):
         with self.client as c:
 
-            resp = c.post("/messages/new",
-                          data={"text": "Hello"}, follow_redirects=True)
+            resp = c.get("/messages/new",
+                         data={"text": "Hello"}, follow_redirects=True)
             self.assertIn('Access unauthorized', str(resp.data))
 
     # ************************
@@ -143,20 +147,6 @@ class MessageViewTestCase(TestCase):
             self.assertIn('Access unauthorized', str(resp.data))
 
     # ************************
-    # When you’re logged in, are you prohibiting from adding a message as another user?
-    # ************************
-    def test_unauthorized_add_message(self):
-        with self.client as c:
-            with c.session_transaction() as sess:
-                sess[CURR_USER_KEY] = self.testuser2.id
-
-            resp = c.post("/messages/new",
-                          data={"text": "Hello", 'user_id': 123}, follow_redirects=True)
-
-            self.assertEqual(resp.status_code, 200)
-            self.assertIn("Access unauthorized", str(resp.data))
-
-    # ************************
     # When you’re logged in, are you prohibiting from deleting a message as another user?
     # ************************
     def test_unauthorized_delete_message(self):
@@ -171,4 +161,5 @@ class MessageViewTestCase(TestCase):
                 f"/messages/{message.id}/delete", follow_redirects=True)
 
             self.assertEqual(resp.status_code, 200)
-            self.assertIn("Access unauthorized", str(resp.data))
+            self.assertIn(
+                "Access unauthorized - you are attempting to delete the post of another user", str(resp.data))

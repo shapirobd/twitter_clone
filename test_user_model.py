@@ -56,6 +56,9 @@ class UserModelTestCase(TestCase):
 
         db.session.commit()
 
+    def tearDown(self):
+        db.session.rollback()
+
     def test_user_model(self):
         """Does basic model work?"""
 
