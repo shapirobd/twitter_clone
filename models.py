@@ -132,6 +132,13 @@ class User(db.Model):
             user for user in self.following if user == other_user]
         return len(found_user_list) == 1
 
+    def serialize(self):
+        return {
+            'id': self.id,
+            'username': self.username,
+            'email': self.email
+        }
+
     @classmethod
     def signup(cls, username, email, password, image_url):
         """Sign up user.

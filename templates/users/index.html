@@ -7,7 +7,7 @@
 			{% for user in users %}
 
 			<div class="col-lg-4 col-md-6 col-12">
-				<div class="card user-card">
+				<div class="card user-card" id="{{user.username}}">
 					<div class="card-inner">
 						<div class="image-wrapper">
 							<img src="{{ user.header_image_url }}" alt="" class="card-hero" />
@@ -23,12 +23,24 @@
 							</a>
 
 							{% if g.user %} {% if g.user.is_following(user) %}
-							<form method="POST" action="/users/stop-following/{{ user.id }}">
-								<button class="btn btn-primary btn-sm">Unfollow</button>
+							<form
+								method="POST"
+								action="/users/stop-following/{{ user.id }}"
+								class="unfollow-form"
+							>
+								<button class="btn btn-primary btn-sm" id="{{user.id}}">
+									Unfollow
+								</button>
 							</form>
 							{% else %}
-							<form method="POST" action="/users/follow/{{ user.id }}">
-								<button class="btn btn-outline-primary btn-sm">Follow</button>
+							<form
+								method="POST"
+								action="/users/follow/{{ user.id }}"
+								class="follow-form"
+							>
+								<button class="btn btn-outline-primary btn-sm" id="{{user.id}}">
+									Follow
+								</button>
 							</form>
 							{% endif %} {% endif %}
 						</div>
