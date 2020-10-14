@@ -1,7 +1,7 @@
 import os
 import pdb
 
-from flask import Flask, render_template, request, flash, redirect, session, g, url_for
+from flask import Flask, render_template, request, flash, redirect, session, g, url_for, jsonify
 from flask_debugtoolbar import DebugToolbarExtension
 from sqlalchemy.exc import IntegrityError
 
@@ -123,7 +123,7 @@ def logout():
 # General user routes:
 
 
-@app.route('/users')
+@app.route('/users', methods=['GET', 'POST'])
 def list_users():
     """Page with listing of users.
 
@@ -194,22 +194,26 @@ def add_follow(user_id):
     g.user.following.append(followed_user)
     db.session.commit()
 
-    return redirect(f"/users/{g.user.id}/following")
+    return jsonify(followed_user={
+        'username': followed_user.username
+    })
 
 
-@app.route('/users/stop-following/<int:follow_id>', methods=['POST'])
-def stop_following(follow_id):
+@app.route('/users/stop-following/<int:user_id>', methods=['POST'])
+def stop_following(user_id):
     """Have currently-logged-in-user stop following this user."""
 
     if not g.user:
         flash("Access unauthorized.", "danger")
         return redirect("/")
 
-    followed_user = User.query.get(follow_id)
+    followed_user = User.query.get_or_404(user_id)
     g.user.following.remove(followed_user)
     db.session.commit()
 
-    return redirect(f"/users/{g.user.id}/following")
+    return jsonify(followed_user={
+        'username': followed_user.username
+    })
 
 
 @app.route('/users/profile', methods=["GET", "POST"])
