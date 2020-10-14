@@ -12,32 +12,39 @@ for (let index in $followForms) {
 	});
 }
 
-async function handleFollowClick(form, button) {
+function handleFollowClick(form, button) {
 	let $followed_user_id = $(button).attr("id");
 	let newBtnHTML;
-
-	if ($(form).hasClass("follow-form")) {
-		let resp = await axios.post(`/users/follow/${$followed_user_id}`);
-		$(form).removeClass("follow-form");
-		$(form).addClass("unfollow-form");
-		newBtnHTML = generateUnfollowButtonHTML($followed_user_id);
-	} else if ($(form).hasClass("unfollow-form")) {
-		let resp = await axios.post(`/users/stop-following/${$followed_user_id}`);
-		$(form).removeClass("unfollow-form");
-		$(form).addClass("follow-form");
-		newBtnHTML = generateFollowButtonHTML($followed_user_id);
-	}
-
 	$(form).empty();
-	$(form).append(newBtnHTML);
+	if ($(form).hasClass("follow-form")) {
+		createNewFollowButton(
+			form,
+			$followed_user_id,
+			"follow",
+			"follow-form",
+			"unfollow-form"
+		);
+	} else if ($(form).hasClass("unfollow-form")) {
+		createNewFollowButton(
+			form,
+			$followed_user_id,
+			"stop-following",
+			"unfollow-form",
+			"follow-form"
+		);
+	}
 }
 
-// async function createNewFollowButton(form, id, action, oldClass, newClass) {
-// 	await axios.post(`/users/${action}/${id}`);
-// 	$(form).removeClass(oldClass);
-// 	$(form).addClass(newClass);
-// 	return generateUnfollowButtonHTML($followed_user_id);
-// }
+async function createNewFollowButton(form, id, action, oldClass, newClass) {
+	let resp = await axios.post(`/users/${action}/${id}`);
+	$(form).removeClass(oldClass);
+	$(form).addClass(newClass);
+	if (action == "follow") {
+		$(form).append(generateUnfollowButtonHTML(id));
+	} else {
+		$(form).append(generateFollowButtonHTML(id));
+	}
+}
 
 function generateUnfollowButtonHTML(id) {
 	return `<button class="btn btn-primary btn-sm" id="${id}">Unfollow</button>`;
