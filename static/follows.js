@@ -1,23 +1,16 @@
-// THIS IS A FAILED ATTEMPT AT A FURTHER STUDY TASK THAT I AM STILL WORKING ON
-
-let $followForms = $(".form");
-
-for (let index in $followForms) {
-	let form = $followForms[index];
-	let button = $(form).children()[0];
-	$(form).on("submit", function (e) {
+$(".form").each(function () {
+	let button = $(this).children()[0];
+	$(this).on("submit", function (e) {
 		e.preventDefault();
-		console.log(form);
-		handleFollowClick(form, button);
+		handleFollowClick(this, button);
 	});
-}
+});
 
 function handleFollowClick(form, button) {
 	let $followed_user_id = $(button).attr("id");
-	let newBtnHTML;
 	$(form).empty();
 	if ($(form).hasClass("follow-form")) {
-		createNewFollowButton(
+		renderNewFollowButton(
 			form,
 			$followed_user_id,
 			"follow",
@@ -25,7 +18,7 @@ function handleFollowClick(form, button) {
 			"unfollow-form"
 		);
 	} else if ($(form).hasClass("unfollow-form")) {
-		createNewFollowButton(
+		renderNewFollowButton(
 			form,
 			$followed_user_id,
 			"stop-following",
@@ -35,7 +28,8 @@ function handleFollowClick(form, button) {
 	}
 }
 
-async function createNewFollowButton(form, id, action, oldClass, newClass) {
+// Should I make this two different functions with less parameters, or a single function with more parameters in order to avoid duplication?
+async function renderNewFollowButton(form, id, action, oldClass, newClass) {
 	let resp = await axios.post(`/users/${action}/${id}`);
 	$(form).removeClass(oldClass);
 	$(form).addClass(newClass);
